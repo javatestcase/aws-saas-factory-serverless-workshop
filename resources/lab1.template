@@ -1369,15 +1369,49 @@ Resources:
     Properties:
       WebsiteConfiguration:
         IndexDocument: index.html
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
       Tags:
         - Key: Name
           Value: !Sub saas-factory-srvls-wrkshp-website-bucket-${AWS::Region}
+  BucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket:
+        Ref: WebsiteBucket
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 's3:GetObject'
+            Effect: Allow
+            Resource:
+              'Fn::Join':
+                - ''
+                - - 'arn:aws:s3:::'
+                  - Ref: WebsiteBucket
+                  - '/*'
+            Principal:
+              CanonicalUser:
+                'Fn::GetAtt':
+                  - OriginAccessIdentity
+                  - S3CanonicalUserId
   InvokeLambdaClearS3BucketWebsiteBucket:
     Type: Custom::CustomResource
     DependsOn: WebsiteBucket
     Properties:
       ServiceToken: !GetAtt LambdaClearS3Bucket.Arn
       Bucket: !Ref WebsiteBucket
+  OriginAccessIdentity:
+    Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
+    Condition: DeployDemoUICondition
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment:
+          'Fn::Sub': 'access-identity-${WebsiteBucket}'
   CloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
     DependsOn: WebsiteBucket
@@ -1390,9 +1424,9 @@ Resources:
         Origins:
           - Id: !Sub S3-Website-${WebsiteBucket}
             DomainName: !Select [1, !Split ["http://", !GetAtt WebsiteBucket.WebsiteURL]]
-            CustomOriginConfig:
-              OriginProtocolPolicy: http-only
-              OriginSSLProtocols: ['TLSv1', 'TLSv1.1', 'TLSv1.2']
+            S3OriginConfig:
+              OriginAccessIdentity:
+                'Fn::Sub': 'origin-access-identity/cloudfront/${OriginAccessIdentity}'
         CustomErrorResponses:
           - ErrorCode: 403
             ResponseCode: 200
