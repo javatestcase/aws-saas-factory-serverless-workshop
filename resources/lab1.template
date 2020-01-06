@@ -1407,7 +1407,6 @@ Resources:
       Bucket: !Ref WebsiteBucket
   OriginAccessIdentity:
     Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
-    Condition: DeployDemoUICondition
     Properties:
       CloudFrontOriginAccessIdentityConfig:
         Comment:
