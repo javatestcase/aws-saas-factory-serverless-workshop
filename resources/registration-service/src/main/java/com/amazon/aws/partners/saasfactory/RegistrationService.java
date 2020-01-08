@@ -422,7 +422,7 @@ public class RegistrationService implements RequestHandler<Map<String, Object>, 
                                                 .temporaryPasswordValidityDays(7)
                                                 .build()
                                 )
-                        .build()
+                                .build()
                 )
         );
         UserPoolType userPool = createUserPoolResponse.userPool();
@@ -469,37 +469,43 @@ public class RegistrationService implements RequestHandler<Map<String, Object>, 
         return result;
     }
 
-    protected String createUser(Tenant tenant, Registration registration) {
-        LOGGER.info("RegistrationService::createUser create Cognito user " + registration.getEmail());
-        final String userPool = tenant.getUserPool();
-        AdminCreateUserResponse createUserResponse = cognito.adminCreateUser(request -> request
-                .userPoolId(userPool)
-                .username(registration.getEmail())
-                .userAttributes(
-                        AttributeType.builder().name("email").value(registration.getEmail()).build(),
-                        AttributeType.builder().name("family_name").value(registration.getLastName()).build(),
-                        AttributeType.builder().name("given_name").value(registration.getFirstName()).build(),
-                        AttributeType.builder().name("custom:tenant_id").value(tenant.getId().toString()).build(),
-                        AttributeType.builder().name("custom:company").value(registration.getCompany()).build(),
-                        AttributeType.builder().name("custom:plan").value(registration.getPlan()).build()
-                )
-                .temporaryPassword(generatePassword())
-                .desiredDeliveryMediumsWithStrings("EMAIL")
-                .messageAction("SUPPRESS")
-        );
-        final UserType user = createUserResponse.user();
+    protected String createUser(Tenant tenant, Registration registration) throws Exception {
+        try {
+            LOGGER.info("RegistrationService::createUser create Cognito user " + registration.getEmail());
+            final String userPool = tenant.getUserPool();
+            AdminCreateUserResponse createUserResponse = cognito.adminCreateUser(request -> request
+                    .userPoolId(userPool)
+                    .username(registration.getEmail())
+                    .userAttributes(
+                            AttributeType.builder().name("email").value(registration.getEmail()).build(),
+                            AttributeType.builder().name("family_name").value(registration.getLastName()).build(),
+                            AttributeType.builder().name("given_name").value(registration.getFirstName()).build(),
+                            AttributeType.builder().name("custom:tenant_id").value(tenant.getId().toString()).build(),
+                            AttributeType.builder().name("custom:company").value(registration.getCompany()).build(),
+                            AttributeType.builder().name("custom:plan").value(registration.getPlan()).build()
+                    )
+                    .temporaryPassword(generatePassword())
+                    .desiredDeliveryMediumsWithStrings("EMAIL")
+                    .messageAction("SUPPRESS")
+            );
+            final UserType user = createUserResponse.user();
 
-        LOGGER.info("RegistrationService::createUser setting password");
-        AdminSetUserPasswordResponse passwordResponse = cognito.adminSetUserPassword(request -> request
-                .userPoolId(userPool)
-                .username(user.username())
-                .password(registration.getPassword())
-                .permanent(Boolean.TRUE)
-        );
+            LOGGER.info("RegistrationService::createUser setting password");
+            AdminSetUserPasswordResponse passwordResponse = cognito.adminSetUserPassword(request -> request
+                    .userPoolId(userPool)
+                    .username(user.username())
+                    .password(registration.getPassword())
+                    .permanent(Boolean.TRUE)
+            );
 
-//        UserStatusType status = cognito.adminGetUser(request -> request.userPoolId(userPool).username(user.username())).userStatus();
-//        LOGGER.info("RegistrationService::createUser " + user.username() + " " + status.toString());
-        return user.username();
+            //        UserStatusType status = cognito.adminGetUser(request -> request.userPoolId(userPool).username(user.username())).userStatus();
+            //        LOGGER.info("RegistrationService::createUser " + user.username() + " " + status.toString());
+            return user.username();
+        } catch (final Exception e) {
+            LOGGER.error("Error creating user: " + registration.getEmail() + ", message: " + e.getMessage());
+            LOGGER.error(getFullStackTrace(e));
+            throw new Exception(e);
+        }
     }
 
     protected void storeParameters(Tenant tenant) {
@@ -579,7 +585,8 @@ public class RegistrationService implements RequestHandler<Map<String, Object>, 
         final int passwordLength = 12;
         Random random = new Random();
         StringBuilder password = new StringBuilder(passwordLength);
-        for (int i = 0; i < passwordLength; i++) {
+        password.append("1Ab");  //this is to make sure we meet password policy of Upper, lower, and numeric
+        for (int i = 3; i < passwordLength; i++) {
             password.append(chars[random.nextInt(chars.length)]);
         }
         return password.toString();
