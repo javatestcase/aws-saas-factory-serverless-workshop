@@ -65,17 +65,9 @@ npm run build
 echo
 echo "Uploading React app to S3 website bucket"
 cd build
-aws s3 sync --delete --acl public-read . s3://$S3_WEBSITE_BUCKET
+aws s3 sync --delete --acl public-read . s3://$S3_WEBSITE_BUCKET --cache-control no-store
 
-if (( $FIRST_RUN )); then
     echo
     echo "Access your website at..."
     echo $CLOUDFRONT_DISTRIBUTION
     echo
-else
-    echo
-    echo "Invalidating CloudFront distribution cache"
-    aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_ID --paths /\*
-    echo "Wait for invalidation to complete, then access your website at..."
-    echo $CLOUDFRONT_DISTRIBUTION
-fi
