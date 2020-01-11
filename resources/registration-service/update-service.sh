@@ -15,9 +15,24 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-REGION=$1
-S3_BUCKET=$2
+if ! [ -x "$(command -v jq)" ]; then
+	echo "Installing jq"
+    sudo yum install -y jq
+fi
+
+REGION=$(aws configure list | grep region | awk '{print $2}')
+echo "AWS Region = $REGION"
+
+STACK_OUTPUTS=$(aws cloudformation describe-stacks | jq -r '.Stacks[] | select(.Outputs != null) | .Outputs[]')
+
+S3_BUCKET=$(echo $STACK_OUTPUTS | jq -r 'select(.OutputKey == "WorkshopBucket") | .OutputValue')
+echo "Workshop bucket = $S3_BUCKET"
+
 LAMBDA_CODE=RegistrationService-lambda.zip
+
+mvn
+
+aws s3 cp target/$LAMBDA_CODE s3://$S3_BUCKET
 
 FUNCTIONS=("saas-factory-srvls-wrkshp-reg-register-${REGION}")
 
